@@ -1,0 +1,12 @@
+{
+    "name": "moicirk/rancher-deploy",
+    "type": "library",
+    "minimum-stability": "stable",
+    "require": {
+        "mauchede/rancher-api": "@dev",
+        "symfony/console": "^3.2"
+    },
+    "autoload": {
+        "psr-4": {"Rancher\\": "src/"}
+    }
+}
