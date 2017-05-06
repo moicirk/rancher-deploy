@@ -1,4 +1,4 @@
 .idea/
 /vendor/
-composer.lock
 run.sh
+launch_config.php

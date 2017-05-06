@@ -2,23 +2,25 @@
 namespace Rancher;
 
 use GuzzleHttp\Client as HttpClient;
+use Psr\Http\Message\ResponseInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * @author Igor Murujev <imurujev@gmail.com>
  */
 abstract class AbstractCommand extends Command
 {
-    protected const EXIT_CODE_SUCCESS = 0;
-    protected const EXIT_CODE_ERROR = 1;
-
     protected $url;
     protected $accessKey;
     protected $secretKey;
     protected $timeout;
     protected $debug;
+
+    /** @var OutputInterface */
+    protected $output;
 
     private $client;
 
@@ -33,21 +35,35 @@ abstract class AbstractCommand extends Command
         ;
     }
 
-    protected function parseOptions(InputInterface $input): void
+    protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $options = [
-            'url' => 'url',
-            'access-key' => 'accessKey',
-            'secret-key' => 'secretKey',
-            'timeout' => 'timeout',
-            'debug' => 'debug'
-        ];
+        $this->output = $output;
+        $this->parseOptions($input);
+        if ($this->before()) {
+            $this->runCommand();
+        }
+    }
 
-        $required = ['url', 'access-key', 'secret-key'];
-        foreach ($options as $optionName => $optionProperty) {
-            $this->{$optionProperty} = $input->getOption($optionName);
-            if (!$this->{$optionProperty} && in_array($optionName, $required)) {
-                throw new \Exception("Option {$optionName} is required");
+    protected function before()
+    {
+        return true;
+    }
+
+    abstract protected function runCommand();
+
+    protected function msg($message)
+    {
+        $this->output->writeln($message);
+    }
+
+    protected function parseOptions(InputInterface $input)
+    {
+        foreach ($input->getOptions() as $option => $value) {
+            $option = str_replace('-', '', ucwords($option, '-'));
+            $option = strtolower($option[0]) . substr($option, 1);
+
+            if (property_exists($this, $option)) {
+                $this->{$option} = $value;
             }
         }
     }
@@ -55,7 +71,7 @@ abstract class AbstractCommand extends Command
     /**
      * @return HttpClient
      */
-    protected function getClient(): HttpClient
+    protected function getClient()
     {
         if ($this->client) {
             return $this->client;
@@ -72,23 +88,23 @@ abstract class AbstractCommand extends Command
         return $this->client;
     }
 
-    protected function getUrl(string $route): string
+    protected function getCollection($route)
     {
-        return rtrim($this->url, '/') . '/' . ltrim($route, '/');
+        return $this->parseResponse($this->getClient()->get($route));
     }
 
-    protected function options(): array
+    protected function getResource($route)
     {
-        return [
-            'url' => 'url',
-            'access-key' => 'accessKey',
-            'secret-key' => 'secretKey',
-            'timeout' => 'timeout'
-        ];
+        $json = $this->parseResponse($this->getClient()->get($route));
+        if (empty($json)) {
+            return null;
+        }
+        return $json[0];
     }
 
-    protected function requiredOptions(): array
+    protected function parseResponse(ResponseInterface $response)
     {
-        return ['url', 'access-key', 'secret-key'];
+        $json = \GuzzleHttp\json_decode($response->getBody());
+        return $json->data;
     }
 }
