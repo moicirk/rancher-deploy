@@ -8,5 +8,6 @@
     },
     "autoload": {
         "psr-4": {"Rancher\\": "src/"}
-    }
+    },
+    "bin": ["bin/app"]
 }
