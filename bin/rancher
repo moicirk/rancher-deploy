@@ -1,6 +1,8 @@
 #!/usr/bin/env php
 <?php
 
+require dirname(__DIR__).'/autoload.php';
+
 use Symfony\Component\Console\Application;
 use Rancher\ServiceCommand;
 
