@@ -4,7 +4,8 @@
     "minimum-stability": "stable",
     "require": {
         "symfony/console": "^3.2.0",
-        "guzzlehttp/guzzle": "~6.2.3"
+        "guzzlehttp/guzzle": "~6.2.3",
+        "ratchet/pawl": "^0.2.3"
     },
     "autoload": {
         "psr-4": {"Rancher\\": "src/"}

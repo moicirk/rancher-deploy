@@ -19,10 +19,13 @@ abstract class AbstractCommand extends Command
     protected $timeout;
     protected $debug;
 
+    protected $configFile;
+
     /** @var OutputInterface */
     protected $output;
 
     private $client;
+    private $configLoaded = false;
 
     protected function configure()
     {
@@ -32,6 +35,7 @@ abstract class AbstractCommand extends Command
             ->addOption('secret-key', null, InputOption::VALUE_REQUIRED, 'Secret key')
             ->addOption('timeout', null, InputOption::VALUE_REQUIRED, 'Client timeout', 60)
             ->addOption('debug', null, InputOption::VALUE_REQUIRED, 'Verbose', 0)
+            ->addOption('config-file', null, InputOption::VALUE_REQUIRED, 'Cache config file', '/tmp/rancher_config.json')
         ;
     }
 
@@ -39,13 +43,41 @@ abstract class AbstractCommand extends Command
     {
         $this->output = $output;
         $this->parseOptions($input);
+
+        if (file_exists($this->configFile)) {
+            $this->loadConfig();
+        }
+
         if ($this->before()) {
             $this->runCommand();
         }
     }
 
+    protected function loadConfig()
+    {
+        $content = file_get_contents($this->configFile);
+        foreach (\json_decode($content, true) as $option => $value) {
+            if (!$this->{$option}) {
+                $this->{$option} = $value;
+            }
+        }
+    }
+
+    protected function getRequiredOptions()
+    {
+        if ($this->configLoaded) {
+            return [];
+        }
+        return ['url', 'accessKey', 'secretKey'];
+    }
+
     protected function before()
     {
+        foreach ($this->getRequiredOptions() as $prop) {
+            if (!$this->{$prop}) {
+                throw new \Exception("Option {$prop} is required");
+            }
+        }
         return true;
     }
 

@@ -1,12 +1,23 @@
 #!/usr/bin/env php
 <?php
 
-require dirname(dirname(dirname(__DIR__))) . '/autoload.php';
+$autoload = dirname(__DIR__) . '/vendor/autoload.php';
+if (!file_exists($autoload)) {
+    $autoload = dirname(dirname(dirname(__DIR__))) . '/autoload.php';
+}
+
+define('ROOT_PATH', dirname(__DIR__));
+
+require $autoload;
 
 use Symfony\Component\Console\Application;
-use Rancher\ServiceCommand;
+use Rancher\UpgradeCommand;
+use Rancher\ExecuteCommand;
+use Rancher\ConfigCommand;
 
 $application = new Application();
-$application->add(new ServiceCommand());
+$application->add(new UpgradeCommand());
+$application->add(new ExecuteCommand());
+$application->add(new ConfigCommand());
 
 $application->run();
