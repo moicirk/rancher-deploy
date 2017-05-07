@@ -11,7 +11,7 @@ class UpgradeCommand extends ServiceCommand
 {
     protected $batch;
     protected $interval;
-    protected $config;
+    protected $image;
 
     protected function configure()
     {
@@ -20,7 +20,7 @@ class UpgradeCommand extends ServiceCommand
         $this->setName('service:upgrade')
             ->setDescription('Rancher service upgrade command')
             ->setHelp('Upgrades rancher service')
-            ->addOption('config', null, InputOption::VALUE_REQUIRED, 'Launch config')
+            ->addOption('image', null, InputOption::VALUE_REQUIRED, 'Image to launch')
             ->addOption('batch', null, InputOption::VALUE_REQUIRED, 'Batch size', 1)
             ->addOption('interval', null, InputOption::VALUE_REQUIRED, 'Interval in milliseconds', 20000)
         ;
@@ -29,7 +29,7 @@ class UpgradeCommand extends ServiceCommand
     protected function getRequiredOptions()
     {
         $required = parent::getRequiredOptions();
-        $required[] = 'config';
+        $required[] = 'image';
         return $required;
     }
 
@@ -67,24 +67,36 @@ class UpgradeCommand extends ServiceCommand
     protected function waitForServiceHealth()
     {
         $service = $this->getService();
-        $count = 0;
+        $failuresCount = 0;
+        $overallCount = 0;
         $url = "services/{$service->id}";
         while (true) {
-            $response = $this->parseResponse($this->getClient()->get($url));
+            $response = $this->getClient()->get($url);
+            $response = \GuzzleHttp\json_decode($response->getBody());
+
             $health = $response->healthState;
 
             $this->msg("Service health state {$health}");
+            $this->msg("Transitioning: {$response->transitioning}");
             if ($response->transitioning == 'no') {
                 $this->msg('No longer transitioning');
                 return $health;
             }
 
             if ($health == 'unhealthy') {
-                ++$count;
-                if ($count === 7) {
+                ++$failuresCount;
+                if ($failuresCount === 7) {
                     $this->msg('Unhealthy upgrade. Cancelling');
                     $this->callServiceAction('cancelupgrade', ['action' => 'cancelupgrade']);
+                    return $health;
                 }
+            }
+
+            ++$overallCount;
+            if ($overallCount > 20) {
+                $this->msg("Upgrading is to long, cancelling");
+                $this->callServiceAction('cancelupgrade', ['action' => 'cancelupgrade']);
+                return $health;
             }
 
             sleep(3);
@@ -93,12 +105,8 @@ class UpgradeCommand extends ServiceCommand
 
     protected function getLaunchConfig()
     {
-        if (!file_exists($this->config)) {
-            throw new \Exception("File {$this->config} not found");
-        }
-
         $launchConfig = (array)$this->getService()->launchConfig;
-        $launchConfig = array_merge($launchConfig, require($this->config));
+        $launchConfig['imageUuid'] = 'docker:' . $this->image;
 
         return [
             'inServiceStrategy' => [
