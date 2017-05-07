@@ -68,7 +68,6 @@ class UpgradeCommand extends ServiceCommand
     {
         $service = $this->getService();
         $failuresCount = 0;
-        $overallCount = 0;
         $url = "services/{$service->id}";
         while (true) {
             $response = $this->getClient()->get($url);
@@ -90,13 +89,6 @@ class UpgradeCommand extends ServiceCommand
                     $this->callServiceAction('cancelupgrade', ['action' => 'cancelupgrade']);
                     return $health;
                 }
-            }
-
-            ++$overallCount;
-            if ($overallCount > 20) {
-                $this->msg("Upgrading is to long, cancelling");
-                $this->callServiceAction('cancelupgrade', ['action' => 'cancelupgrade']);
-                return $health;
             }
 
             sleep(3);
